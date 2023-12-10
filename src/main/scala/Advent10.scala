@@ -43,17 +43,84 @@ object Advent10:
     }
 
     @tailrec
-    def countPathLength(start: Point, previous: Point = Point(-1, -1), count: Int = 0): Int = {
+    def getPath(start: Point, previous: Point = Point(-1, -1), path: List[Point] = Nil): List[Point] = {
       val options = mazeConnections(start.y)(start.x)
       val nextPoint = options.find(_ != previous).head
       if (maze(nextPoint.y)(nextPoint.x) == 'S') {
-        count + 1
+        nextPoint :: path
       } else {
-        countPathLength(nextPoint, start, count + 1)
+        getPath(nextPoint, start, nextPoint :: path)
       }
     }
 
-    println(countPathLength(start) / 2)
+    val path = getPath(start).toSet
+
+    @tailrec
+    def getIntersectionCount(point: Point, intersectionCount: Int = 0, contiguous: Int = 0): Int = {
+      val isIntersection = path.contains(point)
+      val hasMore = point.x < maze(point.y).length - 1
+
+      val (totalIntersectionCount, totalContiguous) =
+        if (isIntersection) {
+          if (hasMore) {
+            (intersectionCount, contiguous + 1)
+          } else {
+            val newIntersections = countIntersections(point.copy(x = point.x + 1), contiguous + 1)
+            (intersectionCount + newIntersections, 0)
+          }
+        } else {
+          if (contiguous > 0) {
+            val newIntersections = countIntersections(point, contiguous)
+            (intersectionCount + newIntersections, 0)
+          } else {
+            (intersectionCount, 0)
+          }
+        }
+
+      if (hasMore) {
+        getIntersectionCount(Point(point.x + 1, point.y), totalIntersectionCount, totalContiguous)
+      } else {
+        totalIntersectionCount
+      }
+    }
+
+    def countIntersections(endPoint: Point, length: Int): Int = {
+      val section = maze(endPoint.y).substring(endPoint.x - length, endPoint.x)
+      var sectionX = 0
+      var intersectionCount = 0
+      var lastDirection = Option.empty[Int]
+      while (sectionX < section.length) {
+        val char = section(sectionX)
+        if (char == '|') {
+          intersectionCount += 1
+        } else if (char != '.' && char != '-') {
+          val connections = mazeConnections(endPoint.y)(sectionX + endPoint.x - length)
+          val nextDirection = connections.map(c => c.y - endPoint.y).find(_ != 0).get
+          if (lastDirection.contains(nextDirection)) {
+            lastDirection = None // pipe going back in the same direction, no intersection
+          } else if (lastDirection.isDefined) {
+            lastDirection = None // pipe crossing, add intersection
+            intersectionCount += 1
+          } else {
+            lastDirection = Some(nextDirection)
+          }
+        }
+        sectionX += 1
+      }
+      intersectionCount
+    }
+
+    val enclosedPoints = for {
+      (line, y) <- maze.zipWithIndex
+      (char, x) <- maze(y).zipWithIndex.toVector
+      point = Point(x, y)
+      if !path.contains(point) && getIntersectionCount(point) % 2 == 1
+    } yield point
+
+    println(mazeConnections(start.y)(start.x))
+    println()
+    println(enclosedPoints.mkString("\r\n"))
+    println(enclosedPoints.length)
 
   }
 
