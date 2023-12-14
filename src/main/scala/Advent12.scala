@@ -79,13 +79,97 @@ object Advent12:
       }
     }
 
-    //println(rows.map(row => countSolutions(row)).mkString("\r\n"))
-    println(rows.map(row => countSolutions(row)).sum)
+    def countSolutionsFast(data: String,
+                           damagedCounts: List[Int],
+                           nextIndex: Int = 0,
+                           nextDamagedCount: Int = 0): Long = {
 
-    println(expandedRows.map {
-      row =>
-        val count = countSolutions(row)
-        println("count " + count.toString)
+      val nextData = data
+
+      /*
+      if (nextIndex > 0) {
+        if (nextDamagedCount > 0) nextData = data.updated(nextIndex - 1, '#')
+        else nextData = data.updated(nextIndex - 1, '.')
+      }
+      */
+
+      var index = nextIndex
+      var damagedCount = nextDamagedCount
+      var remainingCounts = damagedCounts
+      var continue = true
+      while (index < data.length && continue) {
+        val char = data(index)
+        if (char == '#') {
+          damagedCount += 1
+          if (remainingCounts.isEmpty || remainingCounts.head < damagedCount) {
+            index = data.length // premature end
+            continue = false // break. pattern damages are too long to match the recorded damages
+          }
+        } else if (char == '.') {
+          if (damagedCount > 0) {
+            if (remainingCounts.isEmpty || remainingCounts.head != damagedCount) {
+              index = data.length // premature end
+              continue = false // break. pattern damages are too long to match the recorded damages
+            } else {
+              damagedCount = 0
+              remainingCounts = remainingCounts.tail
+            }
+          }
+        } else if (char == '?') {
+          continue = false // break
+        }
+
+        if (continue) index += 1
+      }
+
+      if (index == data.length) {
+        // reached the end
+        if (damagedCount == 0) {
+          if (remainingCounts.isEmpty) {
+            //println(nextData)
+            1 // valid solution
+          } else {
+            0 // invalid solution. pattern damages are too short to match the recorded damages
+          }
+        } else if (remainingCounts.isEmpty || remainingCounts.head != damagedCount || remainingCounts.length >= 2) {
+          0 // invalid solution. pattern damages are too long to match the recorded damages
+        } else {
+          //println(nextData)
+          1 // valid solution. pattern end matches the recorded damage
+        }
+      } else {
+        // arrived at next '?'
+        if (damagedCount > 0 && (remainingCounts.isEmpty || remainingCounts.head < damagedCount)) {
+          0 // invalid solution. pattern damages are too long to match the recorded damages
+        } else {
+          if (damagedCount > 0) {
+            if (remainingCounts.head == damagedCount) {
+              // process last damage count, but forced to stop the chain of damages
+              countSolutionsFast(nextData, remainingCounts.tail, index + 1)
+            } else {
+              // remainingCounts.head > damagedCount: chain of damages must continue to reach the expected count
+              countSolutionsFast(nextData, remainingCounts, index + 1, nextDamagedCount = damagedCount + 1)
+            }
+          } else {
+            val solutionsWithDamage = countSolutionsFast(nextData, remainingCounts, index + 1, nextDamagedCount = 1)
+            val solutionsWithOperational = countSolutionsFast(nextData, remainingCounts, index + 1)
+            solutionsWithDamage + solutionsWithOperational
+          }
+        }
+      }
+    }
+
+    //println(rows.map(row => countSolutions(row)).mkString("\r\n"))
+    //println(rows.map(row => countSolutions(row)).sum)
+
+    //println(countSolutions(Row("???.###", List(1, 1, 3))))
+    //println(countSolutionsFast("???.###", List(1, 1, 3)))
+    //println(rows.map(row => countSolutionsFast(row.data, row.damages.toList)).mkString("\r\n"))
+
+    println(expandedRows.zipWithIndex.map {
+      (row, index) =>
+        val count = countSolutionsFast(row.data, row.damages.toList)
+        println(index.toString + " " + row.data + ", count = " + count.toString)
         count
     }.sum)
 
