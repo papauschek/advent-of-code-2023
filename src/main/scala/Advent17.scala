@@ -24,13 +24,14 @@ object Advent17:
 
     val startNodeValue = allNodes(startNode)
     startNodeValue.distance = 0
+    startNodeValue.estimate = 0
 
     // Dijkstra implementation
-    val unvisitedNodes = collection.mutable.PriorityQueue(startNodeValue)(Ordering.by(-_.distance))
+    val unvisitedNodes = collection.mutable.PriorityQueue(startNodeValue)(Ordering.by(-_.estimate))
     val visitedNodes = collection.mutable.Set.empty[Node]
     var hasReachedDestination = false
-    while (!hasReachedDestination) {
 
+    while (!hasReachedDestination) {
       val current = unvisitedNodes.dequeue()
       val currentNode = current.node
       hasReachedDestination = currentNode.location == destinationPoint
@@ -49,7 +50,9 @@ object Advent17:
                 case Some(nodeValue) if !isDestination || lineLength >= 4 =>
                   val newDistance = current.distance + costsMap(nextNode.location.y)(nextNode.location.x)
                   if (newDistance < nodeValue.distance) {
+                    val estimate = math.abs(nextNode.location.x - destinationPoint.x) + math.abs(nextNode.location.y - destinationPoint.y)
                     nodeValue.distance = newDistance
+                    nodeValue.estimate = newDistance + estimate
                     nodeValue.previous = Some(current)
                     unvisitedNodes.enqueue(nodeValue)
                   }
@@ -92,6 +95,7 @@ object Advent17:
 
   class NodeValue(val node: Node,
                   var distance: Int = Int.MaxValue,
+                  var estimate: Int = Int.MaxValue,
                   var previous: Option[NodeValue] = None) {
 
     override def toString: String = s"NodeValue(distance=$distance, previous=${previous.map(_.node.location)})"
