@@ -9,18 +9,17 @@ object Advent18:
     val rawLines = Files.readString(Path.of("./inputs/input18.txt")).linesIterator.toSeq
     val steps = rawLines.map {
       line => line.split(' ').toSeq match {
-        case Seq(dir, length, color) =>
-          val direction = dir match {
-            case "U" => Point(0, -1)
-            case "D" => Point(0, 1)
-            case "L" => Point(-1, 0)
-            case "R" => Point(1, 0)
+        case Seq(_, _, color) =>
+          val len = Integer.parseInt(color.substring(2, 7), 16)
+          val direction = color.substring(7, 8) match {
+            case "0" => Point(1, 0)
+            case "1" => Point(0, 1)
+            case "2" => Point(-1, 0)
+            case "3" => Point(0, -1)
           }
-          Step(direction, length.toInt, color.substring(2, 8))
+          Step(direction, len)
       }
     }
-
-    //println(steps.mkString("\r\n"))
 
     var points = List.empty[Point]
     var currentPoint = Point(0, 0)
@@ -35,9 +34,7 @@ object Advent18:
       points.map(p => Point(p.x - minX, p.y - minY)).reverse
     }
 
-    //println(lines.mkString("\r\n"))
-
-    def calculatePolygonArea(polygon: List[Point]): Int = {
+    def calculatePolygonArea(polygon: List[Point]): Long = {
 
       val doubleArea = (polygon ++ polygon.take(1)).sliding(2).map {
         case Seq(point1, point2) => point1.x * point2.y - point2.x * point1.y
@@ -63,16 +60,15 @@ object Advent18:
       }.sum
 
       val area = doubleArea / 2
-      println((area, borderArea))
       area + borderArea
     }
 
-    println(calculatePolygonArea(points)) // 39039
+    println(calculatePolygonArea(points)) // 44644464596918
   }
 
-  case class Step(direction: Point, length: Int, color: String)
+  case class Step(direction: Point, length: Long)
 
-  case class Point(x: Int, y: Int) {
+  case class Point(x: Long, y: Long) {
     def +(other: Point): Point = Point(x + other.x, y + other.y)
-    def *(factor: Int): Point = Point(x * factor, y * factor)
+    def *(factor: Long): Point = Point(x * factor, y * factor)
   }
