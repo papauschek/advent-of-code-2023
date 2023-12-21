@@ -22,43 +22,79 @@ object Advent19:
         Flow(name, rules, rawRules.last)
     }
 
-    val parts = partsPart.linesIterator.toSeq.map {
-      line =>
-        val rawCategories = line.drop(1).dropRight(1).split(',').toSeq
-        Part(rawCategories.map {
-          rawCategory =>
-            val Seq(category, value) = rawCategory.split('=').toSeq
-            (category.head, value.toInt)
-        }.toMap)
-    }
-
-    //println(flows.mkString("\r\n"))
-    //println(parts.mkString("\r\n"))
-
-    val inFlow = flows.find(_.name == "in").get
-
-    def evaluateFlow(part: Part, flow: Flow = inFlow): Boolean = {
-      val destination = flow.rules.find(
-        rule => rule.isGreater && part.values(rule.category) > rule.value
-          || !rule.isGreater && part.values(rule.category) < rule.value) match {
-        case Some(rule) => rule.destination
-        case None => flow.destination
-      }
-
-      flows.find(_.name == destination) match {
-        case Some(nextFlow) => evaluateFlow(part, nextFlow)
-        case _ => destination == "A" // or R
+    def evaluateFlowByName(part: Part, flowName: String): Long = {
+      flows.find(_.name == flowName) match {
+        case Some(flow) => evaluateFlow(part, flow)
+        case _ if flowName == "A" => part.combinations
+        case _ if flowName == "R" => 0
+        case _ => throw new Exception(s"unknown flow $flowName")
       }
     }
 
-    val acceptedParts = parts.filter(part => evaluateFlow(part))
-    val acceptedSum = acceptedParts.map(_.values.values.sum).sum
-    println(acceptedSum)
+    def evaluateFlow(part: Part, flow: Flow): Long = {
+      var remainingPart = part
+      var acceptedCount = 0L
+      flow.rules.foreach {
+        rule =>
+          val (included, excluded) = remainingPart.partition(rule.category, rule.isGreater, rule.value)
+          acceptedCount += evaluateFlowByName(included, rule.destination)
+          remainingPart = excluded
+      }
+      evaluateFlowByName(remainingPart, flow.destination) + acceptedCount
+    }
 
+    val fullRange = Range(1, 4000)
+    val ratings = Seq('x', 'm', 'a', 's')
+    val initialPart = Part(ratings.map(r => (r, fullRange)).toMap)
+
+    val acceptedCount = evaluateFlowByName(initialPart, flowName = "in")
+    println(acceptedCount) // 127517902575337
   }
+
 
   case class Flow(name: String, rules: Seq[Rule], destination: String)
 
   case class Rule(category: Char, isGreater: Boolean, value: Int, destination: String)
 
-  case class Part(values: Map[Char, Int])
+  case class Part(values: Map[Char, Range]) {
+
+    def partition(category: Char, isGreater: Boolean, value: Int): (Part, Part) = {
+      val (included, excluded) = if (isGreater) {
+        values(category).greaterThan(value)
+      } else {
+        values(category).smallerThan(value)
+      }
+      (Part(values.updated(category, included)), Part(values.updated(category, excluded)))
+    }
+
+    def isEmpty: Boolean = values.values.exists(_.isEmpty)
+
+    def combinations: Long = {
+      values.values.map(_.count.toLong).product
+    }
+
+    override def toString: String = s"{${values.map((k, v) => s"$k=$v").mkString(", ")}}"
+
+  }
+
+  case class Range(start: Int, count: Int) {
+    
+    val end: Int = start + count
+    
+    /** return intersection and remainder */
+    def smallerThan(max: Int): (Range, Range) = {
+      if (end <= max) (this, Range(0, 0))
+      else (Range(start, max - start), Range(max, end - max))
+    }
+
+    def greaterThan(min: Int): (Range, Range) = {
+      if (start > min) (this, Range(0, 0))
+      else (Range(min + 1, end - min - 1), Range(start, min - start + 1))
+    }
+
+    def isEmpty: Boolean = count <= 0
+
+    override def toString: String = s"[$start, $end)"
+    
+  }
+
